@@ -90,15 +90,11 @@ func (w *File) Accept() error {
 
 	// flush any data to disk
 	w.tempFile.Close()
+	w.tempFile = nil
 
 	// rename the temp file to the real file
-	if err := os.Rename(w.tempFilename, w.filename); err != nil {
-		return w.Close()
-	} else {
-		// if successful, set the closed *os.File to nil
-		w.tempFile = nil
-		return nil
-	}
+	// no need to call Close() because w.tempFile and w.file are now nil
+	return os.Rename(w.tempFilename, w.filename)
 }
 
 // Close cleans up the internal file objects.
