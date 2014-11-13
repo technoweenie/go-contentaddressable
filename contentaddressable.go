@@ -32,7 +32,7 @@ You can also read files, while verifying that they are not corrupt.
     // get this from doing an os.Stat() or something
     expectedSize := 123
 
-    // returns a contentaddressable.ReadCloser
+    // returns an io.ReadCloser
     reader, err := contentaddressable.Open(filename, expectedSize)
     if err != nil {
       panic(err)
