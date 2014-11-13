@@ -16,21 +16,21 @@ func Open(filename string, expectedSize int64) (io.ReadCloser, error) {
 		return file, err
 	}
 
-	return ConsistentReader(file, filepath.Base(filename), expectedSize), nil
+	return Reader(file, filepath.Base(filename), expectedSize), nil
 }
 
-func ConsistentReader(reader io.ReadCloser, oid string, size int64) io.ReadCloser {
-	return &consistentReader{oid, size, sha256.New(), reader}
+func Reader(reader io.ReadCloser, oid string, size int64) io.ReadCloser {
+	return &verifyingReader{oid, size, sha256.New(), reader}
 }
 
-type consistentReader struct {
+type verifyingReader struct {
 	ExpectedOid    string
 	BytesRemaining int64
 	Hash           hash.Hash
 	io.ReadCloser
 }
 
-func (r *consistentReader) Read(p []byte) (int, error) {
+func (r *verifyingReader) Read(p []byte) (int, error) {
 	if int64(len(p)) > r.BytesRemaining {
 		p = p[0:r.BytesRemaining]
 	}

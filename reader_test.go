@@ -35,7 +35,7 @@ func TestVerifyOpen(t *testing.T) {
 
 func TestVerifyReader(t *testing.T) {
 	buf := newBuffer("WAT")
-	reader := ConsistentReader(buf, "d3f2dfc28bb4cbc063fb284734c102a38f96e41fa137dd77478015680fffd81e", 3)
+	reader := Reader(buf, "d3f2dfc28bb4cbc063fb284734c102a38f96e41fa137dd77478015680fffd81e", 3)
 
 	by, err := ioutil.ReadAll(reader)
 	if err != nil {
@@ -49,7 +49,7 @@ func TestVerifyReader(t *testing.T) {
 
 func TestReadSmallerData(t *testing.T) {
 	buf := newBuffer("WAT")
-	reader := ConsistentReader(buf, "d8689b62711dced3f13e45048ffff01759c9f65cc55206b3e95c054826f7f596", 2)
+	reader := Reader(buf, "d8689b62711dced3f13e45048ffff01759c9f65cc55206b3e95c054826f7f596", 2)
 
 	by, err := ioutil.ReadAll(reader)
 
@@ -64,7 +64,7 @@ func TestReadSmallerData(t *testing.T) {
 
 func TestReadBiggerData(t *testing.T) {
 	buf := newBuffer("WA")
-	reader := ConsistentReader(buf, "d3f2dfc28bb4cbc063fb284734c102a38f96e41fa137dd77478015680fffd81e", 3)
+	reader := Reader(buf, "d3f2dfc28bb4cbc063fb284734c102a38f96e41fa137dd77478015680fffd81e", 3)
 
 	by, err := ioutil.ReadAll(reader)
 
@@ -83,7 +83,7 @@ func TestReadBiggerData(t *testing.T) {
 
 func TestReadBadData(t *testing.T) {
 	buf := newBuffer("WAT")
-	reader := ConsistentReader(buf, "BAD-OID", 3)
+	reader := Reader(buf, "BAD-OID", 3)
 
 	by, err := ioutil.ReadAll(reader)
 
