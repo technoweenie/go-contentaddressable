@@ -133,10 +133,15 @@ func TestFileDuel(t *testing.T) {
 func SetupFile(t *testing.T) *FileTest {
 	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("Error getting wd: %s", err)
+		t.Fatal(err.Error())
 	}
 
-	return &FileTest{filepath.Join(wd, "File"), t}
+	path := filepath.Join(wd, "File")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	return &FileTest{path, t}
 }
 
 type FileTest struct {

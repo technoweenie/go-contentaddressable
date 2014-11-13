@@ -6,10 +6,21 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"os"
+	"path/filepath"
 )
 
-func ConsistentReader(reader io.ReadCloser, oid string, size int64) (io.ReadCloser, error) {
-	return &consistentReader{oid, size, sha256.New(), reader}, nil
+func Open(filename string, expectedSize int64) (io.ReadCloser, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return file, err
+	}
+
+	return ConsistentReader(file, filepath.Base(filename), expectedSize), nil
+}
+
+func ConsistentReader(reader io.ReadCloser, oid string, size int64) io.ReadCloser {
+	return &consistentReader{oid, size, sha256.New(), reader}
 }
 
 type consistentReader struct {
