@@ -4,10 +4,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
-	"testing"
 	"reflect"
 	"runtime"
+	"strings"
+	"testing"
 )
 
 var supOid = "a2b71d6ee8997eb87b25ab42d566c44f6a32871752c7c73eb5578cb1182f7be0"
@@ -94,10 +94,10 @@ func TestFileLocks(t *testing.T) {
 	defer test.Teardown()
 
 	filename := filepath.Join(test.Path, supOid)
-	aw, err := NewFile(filename)
+	aw, err := NewWithSuffix(filename, "-wat")
 	assertEqual(t, nil, err)
 	assertEqual(t, filename, aw.filename)
-	assertEqual(t, filename+"-temp", aw.tempFilename)
+	assertEqual(t, filename+"-wat", aw.tempFilename)
 
 	files := []string{aw.filename, aw.tempFilename}
 

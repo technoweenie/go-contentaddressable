@@ -13,6 +13,7 @@ import (
 var (
 	AlreadyClosed = errors.New("Already closed.")
 	HasData       = errors.New("Destination file already has data.")
+	DefaultSuffix = "-temp"
 )
 
 // File handles the atomic writing of a content addressable file.  It writes to
@@ -26,17 +27,23 @@ type File struct {
 	hasher       hash.Hash
 }
 
-// NewFile initializes a content addressable file for writing.  It opens both
-// the given filename, and a temp filename in exclusive mode.  The *File OID
-// is taken from the base name of the given filename.
+// NewFile initializes a content addressable file for writing.  It is identical
+// to NewWithSuffix, except it uses DefaultSuffix as the suffix.
 func NewFile(filename string) (*File, error) {
+	return NewWithSuffix(filename, DefaultSuffix)
+}
+
+// NewWithSuffix initializes a content addressable file for writing.  It opens
+// both the given filename, and a temp filename in exclusive mode.  The *File
+// OID is taken from the base name of the given filename.
+func NewWithSuffix(filename, suffix string) (*File, error) {
 	oid := filepath.Base(filename)
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
 
-	tempFilename := filename + "-temp"
+	tempFilename := filename + suffix
 	tempFile, err := os.OpenFile(tempFilename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return nil, err
