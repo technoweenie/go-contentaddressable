@@ -16,6 +16,15 @@ var (
 	DefaultSuffix = "-temp"
 )
 
+type Options struct {
+	Hasher hash.Hash
+	Suffix string
+}
+
+func DefaultOptions() Options  {
+	return Options{sha256.New(), DefaultSuffix}
+}
+
 // File handles the atomic writing of a content addressable file.  It writes to
 // a temp file, and then renames to the final location after Accept().
 type File struct {
@@ -30,20 +39,27 @@ type File struct {
 // NewFile initializes a content addressable file for writing.  It is identical
 // to NewWithSuffix, except it uses DefaultSuffix as the suffix.
 func NewFile(filename string) (*File, error) {
-	return NewWithSuffix(filename, DefaultSuffix)
+	return NewFileWithOptions(filename, DefaultOptions())
 }
 
 // NewWithSuffix initializes a content addressable file for writing.  It opens
 // both the given filename, and a temp filename in exclusive mode.  The *File
 // OID is taken from the base name of the given filename.
 func NewWithSuffix(filename, suffix string) (*File, error) {
+	options := DefaultOptions()
+	options.Suffix = suffix
+
+	return NewFileWithOptions(filename, options)
+}
+
+func NewFileWithOptions(filename string, options Options) (*File, error) {
 	oid := filepath.Base(filename)
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
 
-	tempFilename := filename + suffix
+	tempFilename := filename + options.Suffix
 	tempFile, err := os.OpenFile(tempFilename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return nil, err
@@ -61,7 +77,7 @@ func NewWithSuffix(filename, suffix string) (*File, error) {
 		tempFilename: tempFilename,
 		file:         file,
 		tempFile:     tempFile,
-		hasher:       sha256.New(),
+		hasher:       options.Hasher,
 	}
 
 	return caw, nil
