@@ -105,6 +105,7 @@ func (w *File) Accept() error {
 
 	// flush any data to disk
 	if err := w.tempFile.Sync(); err != nil {
+		w.Close()
 		return err
 	}
 	if err := w.tempFile.Close(); err != nil {
