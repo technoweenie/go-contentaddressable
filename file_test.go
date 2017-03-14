@@ -19,6 +19,7 @@ func TestFileAccept(t *testing.T) {
 	filename := filepath.Join(test.Path, supOid)
 	aw, err := NewFile(filename)
 	assertEqual(t, nil, err)
+	assertEqual(t, filename, aw.filename)
 
 	n, err := aw.Write([]byte("SUP"))
 	assertEqual(t, nil, err)
@@ -28,11 +29,21 @@ func TestFileAccept(t *testing.T) {
 	assertEqual(t, nil, err)
 	assertEqual(t, 0, len(by))
 
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	assertEqual(t, nil, err)
+	assertEqual(t, "SUP", string(by))
+
 	assertEqual(t, nil, aw.Accept())
 
 	by, err = ioutil.ReadFile(filename)
 	assertEqual(t, nil, err)
 	assertEqual(t, "SUP", string(by))
+
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
 
 	assertEqual(t, nil, aw.Close())
 }
