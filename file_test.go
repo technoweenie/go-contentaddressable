@@ -114,6 +114,13 @@ func TestFileBadAcceptFileClose(t *testing.T) {
 		t.Error("Accept should return error")
 	}
 
+	err = aw.Close()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
 	// file is gone
 	by, err = ioutil.ReadFile(aw.filename)
 	if !os.IsNotExist(err) {
@@ -160,6 +167,13 @@ func TestFileBadAcceptTempFileClose(t *testing.T) {
 	badTempFile.CloseErr = errors.New("test error")
 
 	err = aw.Accept()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	err = aw.Close()
 	if err != nil {
 		assertEqual(t, "test error", err.Error())
 	} else {
@@ -217,6 +231,8 @@ func TestFileBadAcceptTempFileSync(t *testing.T) {
 	} else {
 		t.Error("Accept should return error")
 	}
+
+	assertEqual(t, nil, aw.Close())
 
 	// file is gone
 	by, err = ioutil.ReadFile(aw.filename)

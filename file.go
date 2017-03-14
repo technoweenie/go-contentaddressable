@@ -98,18 +98,15 @@ func (w *File) Accept() error {
 	}
 
 	if err := cleanupFile(w.file, w.filename); err != nil {
-		w.Close()
 		return err
 	}
 	w.file = nil
 
 	// flush any data to disk
 	if err := w.tempFile.Sync(); err != nil {
-		w.Close()
 		return err
 	}
 	if err := w.tempFile.Close(); err != nil {
-		w.Close()
 		return err
 	}
 	w.tempFile = nil
