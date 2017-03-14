@@ -96,7 +96,12 @@ func (w *File) Accept() error {
 	w.file = nil
 
 	// flush any data to disk
-	w.tempFile.Close()
+	if err := w.tempFile.Sync(); err != nil {
+		return err
+	}
+	if err := w.tempFile.Close(); err != nil {
+		return err
+	}
 	w.tempFile = nil
 
 	// rename the temp file to the real file

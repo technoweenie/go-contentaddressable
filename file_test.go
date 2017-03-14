@@ -12,7 +12,7 @@ import (
 
 var supOid = "a2b71d6ee8997eb87b25ab42d566c44f6a32871752c7c73eb5578cb1182f7be0"
 
-func TestFile(t *testing.T) {
+func TestFileAccept(t *testing.T) {
 	test := SetupFile(t)
 	defer test.Teardown()
 
