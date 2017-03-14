@@ -108,6 +108,7 @@ func (w *File) Accept() error {
 		return err
 	}
 	if err := w.tempFile.Close(); err != nil {
+		w.Close()
 		return err
 	}
 	w.tempFile = nil
