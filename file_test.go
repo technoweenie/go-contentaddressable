@@ -1,6 +1,7 @@
 package contentaddressable
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,29 +13,240 @@ import (
 
 var supOid = "a2b71d6ee8997eb87b25ab42d566c44f6a32871752c7c73eb5578cb1182f7be0"
 
-func TestFile(t *testing.T) {
+func TestFileAccept(t *testing.T) {
 	test := SetupFile(t)
 	defer test.Teardown()
 
+	// init file
 	filename := filepath.Join(test.Path, supOid)
 	aw, err := NewFile(filename)
 	assertEqual(t, nil, err)
+	assertEqual(t, filename, aw.filename)
 
+	// write to file
 	n, err := aw.Write([]byte("SUP"))
 	assertEqual(t, nil, err)
 	assertEqual(t, 3, n)
 
-	by, err := ioutil.ReadFile(filename)
+	// check write is saved to temp file
+	by, err := ioutil.ReadFile(aw.tempFilename)
+	assertEqual(t, nil, err)
+	assertEqual(t, "SUP", string(by))
+
+	// check nothing saved to actual file yet
+	by, err = ioutil.ReadFile(filename)
 	assertEqual(t, nil, err)
 	assertEqual(t, 0, len(by))
 
+	// file is accepted properly
 	assertEqual(t, nil, aw.Accept())
 
+	// file has final contents
 	by, err = ioutil.ReadFile(filename)
 	assertEqual(t, nil, err)
 	assertEqual(t, "SUP", string(by))
 
+	// tempfile is gone
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+
+	// no problem closing the file
 	assertEqual(t, nil, aw.Close())
+}
+
+type badFile struct {
+	CloseErr error
+	SyncErr  error
+	*os.File
+}
+
+func (f *badFile) Close() error {
+	if f.CloseErr != nil {
+		return f.CloseErr
+	}
+	return f.File.Close()
+}
+
+func (f *badFile) Sync() error {
+	if f.SyncErr != nil {
+		return f.SyncErr
+	}
+	return f.File.Sync()
+}
+
+func TestFileBadAcceptFileClose(t *testing.T) {
+	test := SetupFile(t)
+	defer test.Teardown()
+
+	// init file
+	filename := filepath.Join(test.Path, supOid)
+	aw, err := NewFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, filename, aw.filename)
+
+	badDestFile := &badFile{File: aw.file.(*os.File)}
+	aw.file = badDestFile
+
+	// write to file
+	n, err := aw.Write([]byte("SUP"))
+	assertEqual(t, nil, err)
+	assertEqual(t, 3, n)
+
+	// check write is saved to temp file
+	by, err := ioutil.ReadFile(aw.tempFilename)
+	assertEqual(t, nil, err)
+	assertEqual(t, "SUP", string(by))
+
+	// check nothing saved to actual file yet
+	by, err = ioutil.ReadFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, 0, len(by))
+
+	badDestFile.CloseErr = errors.New("test error")
+
+	err = aw.Accept()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	err = aw.Close()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	// file is gone
+	by, err = ioutil.ReadFile(aw.filename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+
+	// tempfile is gone
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+}
+
+func TestFileBadAcceptTempFileClose(t *testing.T) {
+	test := SetupFile(t)
+	defer test.Teardown()
+
+	// init file
+	filename := filepath.Join(test.Path, supOid)
+	aw, err := NewFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, filename, aw.filename)
+
+	badTempFile := &badFile{File: aw.tempFile.(*os.File)}
+	aw.tempFile = badTempFile
+
+	// write to file
+	n, err := aw.Write([]byte("SUP"))
+	assertEqual(t, nil, err)
+	assertEqual(t, 3, n)
+
+	// check write is saved to temp file
+	by, err := ioutil.ReadFile(aw.tempFilename)
+	assertEqual(t, nil, err)
+	assertEqual(t, "SUP", string(by))
+
+	// check nothing saved to actual file yet
+	by, err = ioutil.ReadFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, 0, len(by))
+
+	badTempFile.CloseErr = errors.New("test error")
+
+	err = aw.Accept()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	err = aw.Close()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	// file is gone
+	by, err = ioutil.ReadFile(aw.filename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+
+	// tempfile is gone
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+}
+
+func TestFileBadAcceptTempFileSync(t *testing.T) {
+	test := SetupFile(t)
+	defer test.Teardown()
+
+	// init file
+	filename := filepath.Join(test.Path, supOid)
+	aw, err := NewFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, filename, aw.filename)
+
+	badTempFile := &badFile{File: aw.tempFile.(*os.File)}
+	aw.tempFile = badTempFile
+
+	// write to file
+	n, err := aw.Write([]byte("SUP"))
+	assertEqual(t, nil, err)
+	assertEqual(t, 3, n)
+
+	// check write is saved to temp file
+	by, err := ioutil.ReadFile(aw.tempFilename)
+	assertEqual(t, nil, err)
+	assertEqual(t, "SUP", string(by))
+
+	// check nothing saved to actual file yet
+	by, err = ioutil.ReadFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, 0, len(by))
+
+	badTempFile.SyncErr = errors.New("test sync error")
+
+	err = aw.Accept()
+	if err != nil {
+		assertEqual(t, "test sync error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	assertEqual(t, nil, aw.Close())
+
+	// file is gone
+	by, err = ioutil.ReadFile(aw.filename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+
+	// tempfile is gone
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
 }
 
 func TestFileMismatch(t *testing.T) {
@@ -112,7 +324,7 @@ func TestFileLocks(t *testing.T) {
 	for _, name := range files {
 		f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0665)
 		assertEqualf(t, nil, err, "unable to open %s: %s", name, err)
-		cleanupFile(f)
+		cleanupFile(f, name)
 	}
 }
 

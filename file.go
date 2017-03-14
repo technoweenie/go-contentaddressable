@@ -16,14 +16,21 @@ var (
 	DefaultSuffix = "-temp"
 )
 
+type fileWriteSyncer interface {
+	Write([]byte) (int, error)
+	Name() string
+	Close() error
+	Sync() error
+}
+
 // File handles the atomic writing of a content addressable file.  It writes to
 // a temp file, and then renames to the final location after Accept().
 type File struct {
 	Oid          string
 	filename     string
 	tempFilename string
-	file         *os.File
-	tempFile     *os.File
+	file         fileWriteSyncer
+	tempFile     fileWriteSyncer
 	hasher       hash.Hash
 }
 
@@ -51,7 +58,7 @@ func NewWithSuffix(filename, suffix string) (*File, error) {
 
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		cleanupFile(tempFile)
+		cleanupFile(tempFile, tempFilename)
 		return nil, err
 	}
 
@@ -90,13 +97,18 @@ func (w *File) Accept() error {
 		return fmt.Errorf("Content mismatch.  Expected OID %s, got %s", w.Oid, sig)
 	}
 
-	if err := cleanupFile(w.file); err != nil {
+	if err := cleanupFile(w.file, w.filename); err != nil {
 		return err
 	}
 	w.file = nil
 
 	// flush any data to disk
-	w.tempFile.Close()
+	if err := w.tempFile.Sync(); err != nil {
+		return err
+	}
+	if err := w.tempFile.Close(); err != nil {
+		return err
+	}
 	w.tempFile = nil
 
 	// rename the temp file to the real file
@@ -107,14 +119,14 @@ func (w *File) Accept() error {
 // Close cleans up the internal file objects.
 func (w *File) Close() error {
 	if w.tempFile != nil {
-		if err := cleanupFile(w.tempFile); err != nil {
+		if err := cleanupFile(w.tempFile, w.tempFilename); err != nil {
 			return err
 		}
 		w.tempFile = nil
 	}
 
 	if w.file != nil {
-		if err := cleanupFile(w.file); err != nil {
+		if err := cleanupFile(w.file, w.filename); err != nil {
 			return err
 		}
 		w.file = nil
@@ -131,7 +143,11 @@ func (w *File) Closed() bool {
 	return false
 }
 
-func cleanupFile(f *os.File) error {
+func cleanupFile(f fileWriteSyncer, name string) error {
+	if fname := f.Name(); name != fname {
+		return fmt.Errorf("Invalid filename, expected %q, got %q", name, fname)
+	}
+
 	err := f.Close()
 	if err := os.RemoveAll(f.Name()); err != nil {
 		return err
