@@ -16,14 +16,21 @@ var (
 	DefaultSuffix = "-temp"
 )
 
+type fileWriteSyncer interface {
+	Write([]byte) (int, error)
+	Name() string
+	Close() error
+	Sync() error
+}
+
 // File handles the atomic writing of a content addressable file.  It writes to
 // a temp file, and then renames to the final location after Accept().
 type File struct {
 	Oid          string
 	filename     string
 	tempFilename string
-	file         *os.File
-	tempFile     *os.File
+	file         fileWriteSyncer
+	tempFile     fileWriteSyncer
 	hasher       hash.Hash
 }
 
@@ -91,6 +98,7 @@ func (w *File) Accept() error {
 	}
 
 	if err := cleanupFile(w.file); err != nil {
+		w.Close()
 		return err
 	}
 	w.file = nil
@@ -136,7 +144,7 @@ func (w *File) Closed() bool {
 	return false
 }
 
-func cleanupFile(f *os.File) error {
+func cleanupFile(f fileWriteSyncer) error {
 	err := f.Close()
 	if err := os.RemoveAll(f.Name()); err != nil {
 		return err

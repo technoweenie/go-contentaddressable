@@ -1,6 +1,7 @@
 package contentaddressable
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,36 +17,116 @@ func TestFileAccept(t *testing.T) {
 	test := SetupFile(t)
 	defer test.Teardown()
 
+	// init file
 	filename := filepath.Join(test.Path, supOid)
 	aw, err := NewFile(filename)
 	assertEqual(t, nil, err)
 	assertEqual(t, filename, aw.filename)
 
+	// write to file
 	n, err := aw.Write([]byte("SUP"))
 	assertEqual(t, nil, err)
 	assertEqual(t, 3, n)
 
-	by, err := ioutil.ReadFile(filename)
-	assertEqual(t, nil, err)
-	assertEqual(t, 0, len(by))
-
-	by, err = ioutil.ReadFile(aw.tempFilename)
+	// check write is saved to temp file
+	by, err := ioutil.ReadFile(aw.tempFilename)
 	assertEqual(t, nil, err)
 	assertEqual(t, "SUP", string(by))
 
+	// check nothing saved to actual file yet
+	by, err = ioutil.ReadFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, 0, len(by))
+
+	// file is accepted properly
 	assertEqual(t, nil, aw.Accept())
 
+	// file has final contents
 	by, err = ioutil.ReadFile(filename)
 	assertEqual(t, nil, err)
 	assertEqual(t, "SUP", string(by))
 
+	// tempfile is gone
 	by, err = ioutil.ReadFile(aw.tempFilename)
 	if !os.IsNotExist(err) {
 		t.Errorf("Expected file not exist error, got: %+v", err)
 	}
 	assertEqual(t, 0, len(by))
 
+	// no problem closing the file
 	assertEqual(t, nil, aw.Close())
+}
+
+type badFile struct {
+	CloseErr error
+	SyncErr  error
+	*os.File
+}
+
+func (f *badFile) Close() error {
+	if f.CloseErr != nil {
+		return f.CloseErr
+	}
+	return f.File.Close()
+}
+
+func (f *badFile) Sync() error {
+	if f.SyncErr != nil {
+		return f.SyncErr
+	}
+	return f.File.Sync()
+}
+
+func TestFileBadAcceptFileClose(t *testing.T) {
+	test := SetupFile(t)
+	defer test.Teardown()
+
+	// init file
+	filename := filepath.Join(test.Path, supOid)
+	aw, err := NewFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, filename, aw.filename)
+
+	badDestFile := &badFile{File: aw.file.(*os.File)}
+	aw.file = badDestFile
+
+	// write to file
+	n, err := aw.Write([]byte("SUP"))
+	assertEqual(t, nil, err)
+	assertEqual(t, 3, n)
+
+	// check write is saved to temp file
+	by, err := ioutil.ReadFile(aw.tempFilename)
+	assertEqual(t, nil, err)
+	assertEqual(t, "SUP", string(by))
+
+	// check nothing saved to actual file yet
+	by, err = ioutil.ReadFile(filename)
+	assertEqual(t, nil, err)
+	assertEqual(t, 0, len(by))
+
+	badDestFile.CloseErr = errors.New("test error")
+
+	err = aw.Accept()
+	if err != nil {
+		assertEqual(t, "test error", err.Error())
+	} else {
+		t.Error("Accept should return error")
+	}
+
+	// file is gone
+	by, err = ioutil.ReadFile(aw.filename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
+
+	// tempfile is gone
+	by, err = ioutil.ReadFile(aw.tempFilename)
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected file not exist error, got: %+v", err)
+	}
+	assertEqual(t, 0, len(by))
 }
 
 func TestFileMismatch(t *testing.T) {
