@@ -204,7 +204,7 @@ func TestFileLocks(t *testing.T) {
 	for _, name := range files {
 		f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0665)
 		assertEqualf(t, nil, err, "unable to open %s: %s", name, err)
-		cleanupFile(f)
+		cleanupFile(f, name)
 	}
 }
 
